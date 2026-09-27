@@ -1,0 +1,100 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 1rem;
+  font-family: system-ui, sans-serif;
+  background: #f7f7f7;
+  color: #222;
+}
+
+.app {
+  max-width: 40rem;
+  margin: 0 auto;
+  width: 100%;
+}
+
+h1 {
+  font-size: 1.5rem;
+}
+
+.notice {
+  padding: 0.6rem 0.8rem;
+  margin: 0 0 1rem 0;
+  background: #fff3cd;
+  border: 1px solid #e2c26b;
+  border-radius: 0.3rem;
+  overflow-wrap: break-word;
+}
+
+.create-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.create-form label {
+  flex: 0 0 100%;
+}
+
+.create-form input[type="text"] {
+  flex: 1 1 12rem;
+  min-width: 0;
+  padding: 0.5rem;
+  font-size: 1rem;
+}
+
+.create-form button {
+  padding: 0.5rem 1rem;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.task-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.task-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #ddd;
+  flex-wrap: wrap;
+}
+
+.task-item .title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+.task-item.completed .title {
+  text-decoration: line-through;
+  color: #777;
+}
+
+.task-item button {
+  padding: 0.3rem 0.7rem;
+  cursor: pointer;
+}
+
+@media (max-width: 480px) {
+  .create-form {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .create-form input[type="text"],
+  .create-form button {
+    flex: none;
+    width: 100%;
+  }
+}
