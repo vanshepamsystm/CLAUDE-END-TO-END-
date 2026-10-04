@@ -13,7 +13,7 @@ Determine whether the Step 5 implementation (`index.html`, `styles.css`, `app.js
 - `architecture.md` (approved)
 - `design-review.md` (approved)
 - `implementation-plan.md` (approved)
-- `index.html`, `styles.css`, `app.js` (Step 5 implementation, commit `7a41d026b1369c1af22d4c616864145dc8aefd41`)
+- `index.html`, `styles.css`, `app.js` (Step 5 implementation, commit `7a41d026b1369c1af22d4c616864145dc8aefd41`; Clear Completed Tasks addition, commit `a93b9f5`)
 - `Agents/implementation.agent.md`, `Skills/implementation/SKILL.md`, `Prompts/implementation.prompt.md`
 - The Step 5 implementation/verification record (files changed, live-browser verification performed, defects found and fixed, limitations reported)
 
@@ -21,7 +21,7 @@ No production code, requirements, architecture, design-review, or implementation
 
 ## 3. Review Scope
 
-In scope: requirements conformance (FR-1–FR-14, NFR-1–NFR-9), architecture conformance, implementation-plan conformance (IP-001–IP-013), security, accessibility, responsive/UI behavior, and maintainability/code quality — evaluated against the existing implementation and, where applicable, against the existing Step 5 verification evidence.
+In scope: requirements conformance (FR-1–FR-15, NFR-1–NFR-9), architecture conformance, implementation-plan conformance (IP-001–IP-015), security, accessibility, responsive/UI behavior, and maintainability/code quality — evaluated against the existing implementation and, where applicable, against the existing Step 5 verification evidence.
 
 Out of scope: redesigning the application or architecture; adding features; modifying any approved artifact or implementation file; performing new live verification beyond what Step 5 already produced; the Verify phase; Pull Request artifacts; new testing tooling.
 
@@ -45,6 +45,7 @@ Out of scope: redesigning the application or architecture; adding features; modi
 | FR-12 — Storage Unavailable | Satisfies | `load()` catches a thrown read and returns `{status:'unavailable', tasks:[]}`; the app remains fully usable in-memory; the UI shows the corresponding notice. |
 | FR-13 — Malformed Stored Data | Satisfies | A `JSON.parse` failure or a failed `isValidTaskArray()` shape check returns `{status:'malformed', tasks:[]}`; `load()` contains no `setItem` call anywhere in its body, so the existing stored bytes are left untouched until a subsequent user action performs an ordinary save. |
 | FR-14 — Write Failure | Satisfies | `save()` catches a thrown `setItem` and returns `{status:'failed'}`; because the in-memory mutation (`unshift`/`splice`/property assignment) always happens before `persistAfterMutation()` is called, a failed save never rolls back or loses the in-memory change. |
+| FR-15 — Clear Completed Tasks | Satisfies | `clearCompleted()` filters out every `completed===true` task, preserves the rest, and calls `persistAfterMutation()` — the same path as every other mutation. `clear-completed-btn` carries the native `disabled` attribute by default, and `renderClearCompletedButton()` sets `.disabled = !hasCompletedTasks()` inside `renderAll()`, which runs after every mutation and once at startup — so the control is reliably disabled whenever zero tasks are completed, and a disabled native `<button>` cannot dispatch a `click`, satisfying "activating it has no effect." |
 
 ### 4.2 Non-Functional Requirements
 
@@ -60,7 +61,7 @@ Out of scope: redesigning the application or architecture; adding features; modi
 | NFR-8 — Responsive Layout | Satisfies | The mobile-defect fix (`flex: none;` inside the `@media (max-width: 480px)` block, `styles.css` lines 89–100) is present in the current file. No horizontal overflow at 375px or 1024px was confirmed via Step 5's live-browser measurement. |
 | NFR-9 — Safe Title Rendering | Satisfies | `titleSpan.textContent = task.title` is the only place a title is inserted into the DOM; no occurrence of `innerHTML` exists anywhere in `app.js` (confirmed by search). Step 5's live XSS-style title test confirmed no script execution and no markup creation. |
 
-**Conclusion:** All 14 functional requirements and all 9 non-functional requirements are satisfied, with direct code evidence and, where applicable, prior live-verification evidence from Step 5. No requirement was found unsatisfied, partially satisfied, or undeterminable.
+**Conclusion:** All 15 functional requirements and all 9 non-functional requirements are satisfied, with direct code evidence and, where applicable, prior live-verification evidence from Step 5. No requirement was found unsatisfied, partially satisfied, or undeterminable.
 
 ## 5. Architecture Conformance
 
@@ -71,6 +72,7 @@ Out of scope: redesigning the application or architecture; adding features; modi
 - **Failure handling (§11, AD-4):** matches exactly — `load()` never writes; a failed `save()` never alters the in-memory list; no automatic retry exists.
 - **System boundary (§3, §15):** no backend, network call, or external service exists anywhere in the code (confirmed by searching for `fetch`, `XMLHttpRequest`, `WebSocket` — none found); no build step, framework, or package manager is present.
 - **Storage key (§10, AD-3):** a single `localStorage` key, `todo.tasks.v1`, matching the architecture's own example key.
+- **Clear Completed reuse (AD-7, §8):** `clearCompleted()` introduces no new component, persistence shape, or status value; it is exactly an array filter followed by the existing `save(tasks)` call. The Clear Completed data flow (§8) — UI triggers only when enabled → Store filters → `save(tasks)` → UI removes items/refocuses/updates notice/disables control — matches the code's `clearCompleted(); renderAll(); titleInput.focus();` sequence exactly.
 
 **Conclusion:** No architectural deviation was found. The implementation conforms to `architecture.md` in every reviewed area.
 
@@ -88,11 +90,13 @@ Out of scope: redesigning the application or architecture; adding features; modi
 | IP-008 — Wire Task Store to Persistence Layer | Satisfies | Exactly one `load()` at startup (`initStore()`); one `save()` per mutation (`persistAfterMutation()`). |
 | IP-009 — UI rendering: task list & completed indicator | Satisfies | `renderTasks()`/`buildTaskItem()`, text-only rendering, `completed` class. |
 | IP-010 — UI event wiring | Satisfies | `submit`/`change`/`click` listeners wired to Task Store operations, followed by re-render. |
-| IP-011 — Keyboard accessibility & tab order | Satisfies (structural evidence) | No `tabindex` anywhere; DOM order matches visual layout. See Limitation in §12. |
-| IP-012 — Focus management after create/delete | Satisfies | Implemented exactly as specified; live-verified in Step 5. |
+| IP-011 — Keyboard accessibility & tab order (extended to clear-completed) | Satisfies (structural evidence) | No `tabindex` anywhere, including on the clear-completed button; DOM order matches visual layout. See Limitation in §12. |
+| IP-012 — Focus management after create/delete/clear-completed | Satisfies | Implemented exactly as specified for create/delete (live-verified in Step 5); the clear-completed click handler calls `titleInput.focus()` at the end, same pattern — see REV-4 for its verification depth. |
 | IP-013 — Persistence status notice UI | Satisfies | `renderNotice()`/`NOTICE_MESSAGES`, hidden when status is `ok`. |
+| IP-014 — Clear Completed operation (Task Store) | Satisfies | `clearCompleted()`/`hasCompletedTasks()` in `app.js`; one `save()` call per activation; incomplete tasks and their order are unaffected. |
+| IP-015 — Clear Completed UI control & wiring | Satisfies | Native `<button id="clear-completed-btn">` in `index.html`, placed after the task list; wired in `initUI()`; disabled/enabled state recomputed inside `renderAll()` after every mutation. |
 
-**Conclusion:** All thirteen implementation-plan tasks are delivered as specified. No unplanned implementation task or feature was introduced.
+**Conclusion:** All fifteen implementation-plan tasks are delivered as specified. No unplanned implementation task or feature was introduced.
 
 ## 7. Security Review
 
@@ -101,6 +105,7 @@ Out of scope: redesigning the application or architecture; adding features; modi
 - `load()` validates parsed data via `isValidTaskArray()` (checks array type, and per-item `string id`, `string title`, `boolean completed`) before trusting it; any shape or parse failure is treated as `malformed`, never used as-is.
 - No network call, external resource, or credential exists anywhere in the code (confirmed by search for `fetch`/`XMLHttpRequest`/`WebSocket`; `index.html` references only local `styles.css` and `app.js`).
 - Step 5's live-browser test with a title of `<script>window.__xss_ran=1</script>` confirmed the text rendered literally, no `<script>` element was created in the DOM, and the script never executed. This review relies on that existing evidence rather than re-performing the test.
+- The Clear Completed addition introduces no new DOM-writing mechanism beyond the existing `renderTasks()`/`textContent` pattern it already relies on; its only new DOM write is a boolean `.disabled` property assignment on the button, which carries no injection surface.
 
 **Conclusion:** No security findings. The implementation conforms to NFR-9 and `architecture.md` §12.
 
@@ -111,8 +116,9 @@ Out of scope: redesigning the application or architecture; adding features; modi
 - Focus is explicitly returned to the title input after both create and delete (`titleInput.focus()` in `handleCreateSubmit()` and in the delete click handler), satisfying NFR-7; both cases were live-verified in Step 5.
 - REV-1 (see §11): the full list re-render on every mutation, including complete/reopen, replaces the checkbox DOM node without redirecting focus. This does not violate NFR-7, which explicitly scopes focus management to create and delete only — a scoping already reviewed and confirmed correct in `design-review.md` §5/§8.
 - Consistent with the Step 5 limitation, this review did not perform, and does not claim to have performed, physical Tab-key traversal or physical key-press synthesis. Native-element and DOM-order evidence support NFR-5/NFR-6 conformance; see the Limitation in §12.
+- The clear-completed button is a native `<button>` with no `tabindex`, placed last in DOM order; when disabled it is natively excluded from the tab sequence by the browser. No live-browser or physical-keyboard verification of this specific control was performed in this session — see REV-4.
 
-**Conclusion:** No accessibility defects were found relative to the approved requirements. One Low-severity observation (REV-1) and the testing-depth limitation are documented below.
+**Conclusion:** No accessibility defects were found relative to the approved requirements. One Low-severity observation (REV-1) and two testing-depth limitations (original and newly added) are documented below.
 
 ## 9. Responsive/UI Review
 
@@ -139,6 +145,7 @@ Out of scope: redesigning the application or architecture; adding features; modi
 | REV-1 | Low | Accessibility | `renderAll()` fully tears down and rebuilds the entire task list on every mutation, including complete/reopen. A keyboard user toggling a checkbox has that checkbox DOM node destroyed and replaced, with no explicit focus redirection afterward (focus falls back to `<body>`). This is not a requirement violation: NFR-7 explicitly scopes focus management to create and delete only, and `design-review.md` §5/§8 already reviewed and confirmed this exact scoping as correct. | NFR-7; `architecture.md` §13; `design-review.md` §5, §8 | No change required to meet approved requirements. |
 | REV-2 | Informational | Code quality | `deleteTask()` re-implements a manual linear index-search loop rather than reusing `findTask()` or `Array.prototype.findIndex`. Negligible impact given the file's size. | Maintainability / NFR-3 | No change required. |
 | REV-3 | Informational | Testing evidence | Step 5's and this Review's accessibility conclusions rely on structural evidence (native elements, no `tabindex`, correct DOM order) and on programmatic DOM-event dispatch (`submit`/`click`/`change`), not on physical key-press synthesis. Physical Tab-key traversal was not exercised in either phase. | NFR-5, NFR-6, AC-15 | No change required. Documented as a limitation (§12); no new testing tooling (e.g., Playwright, Puppeteer) is to be added. |
+| REV-4 | Informational | Testing evidence | Unlike the original Step 5 build (which had live-browser verification for FR-1–FR-14/NFR-1–NFR-9), the Clear Completed Tasks addition (FR-15, IP-014, IP-015) was verified only statically/by code review in this session — no live browser was available. Visual rendering, actual click/keyboard activation, and an actual localStorage round-trip after clearing were not interactively exercised. | FR-15, AC-19, IP-014, IP-015 | No change required. Documented as a limitation (§12); no new testing tooling is to be added. |
 
 **No Critical, High, or Medium findings exist.**
 
@@ -149,6 +156,7 @@ The following dispositions were explicitly approved by the human reviewer:
 - **REV-1 — Low — No change required.**
 - **REV-2 — Informational — No change required.**
 - **REV-3 — Informational — No change required.**
+- **REV-4 — Informational — No change required.**
 
 Additionally approved as part of the overall conclusion:
 
@@ -161,7 +169,7 @@ Additionally approved as part of the overall conclusion:
 
 ## 13. Overall Review Conclusion
 
-The Step 5 implementation conforms to `requirements.md`, `architecture.md`, `design-review.md`, and `implementation-plan.md` in every reviewed area. All 14 functional requirements and all 9 non-functional requirements are satisfied. All 13 implementation-plan tasks are delivered as specified, with no unplanned feature or task introduced. No architectural deviation exists. Security and responsive/UI reviews found no defects. Accessibility review found the implementation conformant, with one Low-severity observation (REV-1) that does not conflict with any approved requirement. Maintainability review found one Informational observation (REV-2). No finding required a change to the implementation or to any approved artifact.
+The Step 5 implementation, together with the Clear Completed Tasks addition (IP-014/IP-015), conforms to `requirements.md`, `architecture.md`, `design-review.md`, and `implementation-plan.md` in every reviewed area. All 15 functional requirements and all 9 non-functional requirements are satisfied. All 15 implementation-plan tasks are delivered as specified, with no unplanned feature or task introduced. No architectural deviation exists. Security and responsive/UI reviews found no defects. Accessibility review found the implementation conformant, with one Low-severity observation (REV-1) that does not conflict with any approved requirement. Maintainability review found one Informational observation (REV-2). The Clear Completed addition's verification depth (static/code-review only, no live browser in this session) is documented as REV-4, Informational. No finding required a change to the implementation or to any approved artifact.
 
 **No implementation changes are required. No approved artifact requires modification.**
 
@@ -169,11 +177,12 @@ The Step 5 implementation conforms to `requirements.md`, `architecture.md`, `des
 
 - Physical Tab-key traversal and physical key-press synthesis were not performed in either the Step 5 verification or this Review phase. Keyboard-accessibility conclusions rest on native-element/DOM-order structural evidence and on programmatic DOM-event dispatch, not on literal key-press simulation. This limitation is accepted and documented rather than resolved; no new test-automation tooling has been or will be added to close it, per explicit human direction.
 - Responsive/UI conformance in this Review phase relies entirely on Step 5's existing live-browser measurements; no new browser session was run during the Review phase itself.
+- The Clear Completed Tasks addition (FR-15, IP-014, IP-015) has no live-browser verification at all (neither visual, interactive, nor persistence round-trip) — conformance rests entirely on static code review. This is accepted and documented per REV-4, rather than resolved; no new test-automation tooling has been or will be added.
 
 ## 15. Validation Checklist
 
 - [x] Every FR and NFR was checked against the implementation, not merely listed.
-- [x] Every IP-001–IP-013 task was checked against what was actually delivered.
+- [x] Every IP-001–IP-015 task was checked against what was actually delivered.
 - [x] No product requirement or architecture decision was added, removed, or reinterpreted.
 - [x] Findings distinguish real observations from stylistic preference, and implementation evidence from prior verification evidence and from untested items.
 - [x] No implementation file (`index.html`, `styles.css`, `app.js`) was modified during this review.
