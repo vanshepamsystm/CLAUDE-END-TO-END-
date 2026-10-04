@@ -24,6 +24,7 @@ Every functional and non-functional requirement was checked individually against
 - FR-5, FR-6 (combined list view + completed indicator) — UI Layer rendering, §7.
 - FR-7, FR-8, FR-9 (complete/reopen/delete by ID) — Task Store operations by ID, §8.
 - FR-10 (duplicate titles treated independently) — Task Store independence-by-ID, §7.
+- FR-15 (clear all completed tasks) — Task Store filter operation, §7, §8, AD-7.
 - FR-11 (persistence across refresh/reopen) — Persistence Layer `load()`/`save()`, §10.
 - FR-12 (storage unavailable) — `load()` → `"unavailable"`, §10, §11.
 - FR-13 (malformed/unreadable data, no silent overwrite) — `load()` → `"malformed"`, §10, §11, AD-4.
@@ -64,7 +65,7 @@ UI Layer, Task Store, and Persistence Layer each have a single, distinct respons
 
 ## 5. Data Flow Review
 
-Create, Load, Complete/Reopen, and Delete flows (§8) were each walked end-to-end. Each flow is complete (input → state change → persistence call → status recorded → UI update) and consistent with the component responsibilities and data model. Focus management is correctly scoped to create and delete only, matching NFR-7's exact requirement.
+Create, Load, Complete/Reopen, Delete, and Clear Completed flows (§8) were each walked end-to-end. Each flow is complete (input → state change → persistence call → status recorded → UI update) and consistent with the component responsibilities and data model. Focus management is correctly scoped to create, delete, and clear-completed, matching NFR-7's exact requirement. Clear Completed correctly reuses the same filter-then-save-and-status pattern already established by Delete, introducing no new mechanism.
 
 **Conclusion: All data flows are complete and internally consistent.**
 
@@ -112,6 +113,7 @@ The component diagram (§6), data flows (§8), persistence contract (§10), deci
 | F2 | §13's responsive-layout wording does not explicitly restate AC-17's "no horizontal scrolling / no overlapping elements" condition. | Low | Clarification opportunity | **Rejected/deferred.** The responsive requirement (NFR-8) is already adequately represented in §13; no wording change is necessary. |
 | F3 | Component diagram (§6) shows a return arrow for `load()`'s result but not for `save()`'s result, though §8/§10 describe the Store reading `save()`'s returned status. | Low | Clarification opportunity (cosmetic) | **Rejected/deferred.** The diagram is sufficiently clear; the missing save-status return arrow is cosmetic and does not affect the architecture. |
 | F4 | NFR-5 (keyboard operability) is satisfied as a direct consequence of NFR-4 (native semantic elements) rather than by a separate design mechanism. | Informational | Already adequately addressed | **Recorded as informational; no change required.** |
+| F5 | §7's UI Layer responsibility bullet does not restate the clear-completed control's disabled-state check, though it is already fully specified in §8 and §13. | Low | Clarification opportunity (cosmetic) | **Rejected/deferred.** Redundant with §8/§13; no wording change necessary. |
 
 No finding in this review was classified as an architecture change or design decision requiring approval. `architecture.md` was not modified.
 
@@ -119,11 +121,11 @@ No finding in this review was classified as an architecture change or design dec
 
 **The architecture is sound and ready for Implementation Planning.**
 
-- Requirements coverage is complete across all FR-1–FR-14 and NFR-1–NFR-9.
-- Component responsibilities are distinct and non-overlapping.
+- Requirements coverage is complete across all FR-1–FR-15 and NFR-1–NFR-9, including the Clear Completed Tasks addition (FR-15, AD-7).
+- Component responsibilities are distinct and non-overlapping; FR-15 introduced no new component.
 - The data model, data flows, and persistence design (including failure-mode handling and the scoped "no partial write" guarantee) are complete and internally consistent.
 - Security, accessibility, and simplicity/maintainability constraints from `CLAUDE.md` are all satisfied.
-- All identified findings (F1–F3) were optional, low-severity clarification opportunities that the human reviewer explicitly rejected/deferred as unnecessary; F4 is informational only.
+- All identified findings (F1–F3, F5) were optional, low-severity clarification opportunities that the human reviewer explicitly rejected/deferred as unnecessary; F4 is informational only.
 - No architecture change was required or made.
 
 The Design Review phase is complete pending the human's explicit approval to proceed.
