@@ -2,11 +2,11 @@
 
 ## 1. Overview
 
-Defines requirements for a simple Todo List application supporting task creation, viewing, completion, reopening, and deletion, derived from `user_story.md` and confirmed product decisions.
+Defines requirements for a simple Todo List application supporting task creation, viewing, completion, reopening, deletion, and bulk clearing of completed tasks, derived from `user_story.md` and confirmed product decisions.
 
 ## 2. User Story
 
-As a Todo List user, I want to create, view, complete, and delete tasks so that I can keep track of my work.
+As a Todo List user, I want to create, view, complete, and delete tasks so that I can keep track of my work, and clear completed tasks in bulk once I no longer need them.
 
 ## 3. Functional Requirements
 
@@ -24,6 +24,7 @@ As a Todo List user, I want to create, view, complete, and delete tasks so that 
 - **FR-12 — Storage Unavailable:** If browser-local storage is unavailable (e.g., blocked or inaccessible), the system shall continue to function for the current session using in-memory state, and shall indicate to the user that changes will not be saved persistently.
 - **FR-13 — Malformed Stored Data:** If previously stored task data cannot be read or parsed, the system shall not automatically overwrite or discard the existing stored data; it shall start the current session with an empty or error-indicated list and shall inform the user that stored data could not be loaded, leaving the original stored data untouched until a subsequent explicit user action produces a new save.
 - **FR-14 — Write Failure:** If a write to storage fails, the system shall retain the current in-memory task list without loss for the remainder of the session, shall not partially or silently overwrite existing valid stored data as a result of the failed write, and shall indicate to the user that the change could not be saved.
+- **FR-15 — Clear Completed Tasks:** The system shall allow the user to remove all completed tasks from the list in a single action, immediately upon request, without a confirmation step. The control shall be disabled whenever there are zero completed tasks, and enabled whenever at least one task is completed.
 
 ## 4. Non-Functional Requirements
 
@@ -31,9 +32,9 @@ As a Todo List user, I want to create, view, complete, and delete tasks so that 
 - **NFR-2 — Responsiveness:** Task actions (create, complete, reopen, delete) must be reflected in the visible list immediately after the action.
 - **NFR-3 — Simplicity/Maintainability:** The implementation must remain intentionally simple, avoiding unnecessary frameworks or backend infrastructure, per project scope control.
 - **NFR-4 — Semantic Controls:** Interactive elements (title input, complete/reopen control, delete control) shall use native, semantic HTML elements appropriate to their function (e.g., `<input>`, `<button>`, checkbox-type control), rather than non-semantic elements with attached behavior.
-- **NFR-5 — Keyboard Operability:** All task actions (create, complete, reopen, delete) shall be fully operable using the keyboard alone, without requiring a mouse or touch input.
+- **NFR-5 — Keyboard Operability:** All task actions (create, complete, reopen, delete, clear completed) shall be fully operable using the keyboard alone, without requiring a mouse or touch input.
 - **NFR-6 — Logical Tab Order:** Keyboard focus order shall follow a logical, predictable sequence matching the visual layout of the task list and controls.
-- **NFR-7 — Predictable Focus Behavior:** After a task is created, focus shall return to the title input so another task can be added immediately. After a task is deleted, focus shall move to a predictable, defined element (the title input) rather than being lost or left on a removed element.
+- **NFR-7 — Predictable Focus Behavior:** After a task is created, focus shall return to the title input so another task can be added immediately. After a task is deleted, or after completed tasks are cleared, focus shall move to a predictable, defined element (the title input) rather than being lost or left on a removed element.
 - **NFR-8 — Responsive Layout:** The layout must remain usable and legible on both desktop-sized and mobile-sized screens, with all controls visible and operable without horizontal scrolling or overlapping elements.
 - **NFR-9 — Safe Title Rendering:** Task titles shall be rendered strictly as text content. User-provided titles shall never be interpreted or executed as HTML, script, or other markup, regardless of their content.
 
@@ -52,6 +53,7 @@ As a Todo List user, I want to create, view, complete, and delete tasks so that 
 - Displaying all tasks in one combined list, newest-first.
 - Completing and reopening tasks, addressed by unique ID.
 - Deleting tasks (immediate, no confirmation), addressed by unique ID.
+- Clearing all completed tasks at once, as a single bulk action (immediate, no confirmation, disabled when no completed tasks exist).
 - Persisting tasks across refresh/reopen via browser-local storage, including defined behavior for storage-unavailable, malformed-data, and write-failure conditions.
 - Baseline accessibility (semantic controls, keyboard operability, logical tab order, predictable focus) and responsive layout.
 - Safe (text-only) rendering of task titles.
@@ -63,7 +65,7 @@ As a Todo List user, I want to create, view, complete, and delete tasks so that 
 - Filtering, sorting, or searching tasks.
 - Manual/custom reordering of tasks by the user.
 - Categories, priorities, due dates, reminders.
-- Delete confirmation dialogs.
+- Confirmation dialogs for delete or clear-completed actions.
 - Maximum title length or maximum task count limits.
 - Authentication, accounts, multi-device sync, or collaboration.
 - Server-side persistence, and automatic repair/recovery of corrupted stored data beyond leaving it unmodified.
@@ -88,6 +90,7 @@ As a Todo List user, I want to create, view, complete, and delete tasks so that 
 - **AC-16 (NFR-7):** After creating a task, the title input receives focus. After deleting a task, the title input receives focus, and focus is never left on a removed element.
 - **AC-17 (NFR-8):** At a mobile-width viewport, all controls remain visible, reachable, and operable without horizontal scrolling or overlapping elements.
 - **AC-18 (NFR-9):** Given a task title containing HTML or script-like content (e.g., `<script>alert(1)</script>`), when displayed in the list, it appears as literal visible text and is not executed or rendered as markup.
+- **AC-19 (FR-15):** Given at least one completed task, when the user activates Clear Completed, all completed tasks are immediately removed and incomplete tasks are unaffected. Given zero completed tasks, the control is disabled and activating it has no effect.
 
 ## 9. Assumptions
 
