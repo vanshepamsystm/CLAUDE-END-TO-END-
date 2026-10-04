@@ -33,7 +33,7 @@ A single-page, client-only web application. Entirely static HTML/CSS/vanilla Jav
 Three logical responsibilities within one page (not necessarily separate files, though they may be for readability):
 
 1. **UI Layer** — renders the list and controls, handles user input events, updates the DOM.
-2. **Task Store** — holds the in-memory array of tasks; exposes create/complete/reopen/delete operations that enforce FR-1–FR-10.
+2. **Task Store** — holds the in-memory array of tasks; exposes create/complete/reopen/delete/clear-completed operations that enforce FR-1–FR-10 and FR-15.
 3. **Persistence Layer** — wraps `localStorage` access; implements load/save and the FR-12–FR-14 error conditions.
 
 Flow: UI events → Task Store operation → Task Store tells UI to re-render → Task Store asks Persistence Layer to save. On startup: Persistence Layer reads and validates storage → Task Store initializes from the result: an absent key is a normal `ok` first-run case, producing an empty task list without being treated as an error, while malformed or unavailable storage produces an empty in-memory task list together with the appropriate persistence notice → UI renders.
@@ -43,7 +43,7 @@ Flow: UI events → Task Store operation → Task Store tells UI to re-render �
 ```mermaid
 flowchart TD
     User(["User"]) -->|interacts via keyboard/mouse| UI[UI Layer<br/>rendering + event handlers]
-    UI -->|create / complete / reopen / delete| Store[Task Store<br/>in-memory task state]
+    UI -->|create / complete / reopen / delete / clear completed| Store[Task Store<br/>in-memory task state]
     Store -->|render state + persistence status| UI
     Store -->|save tasks| Persistence[Persistence Layer<br/>storage adapter]
     Persistence -->|load result: status + tasks| Store
@@ -53,7 +53,7 @@ flowchart TD
 ## 7. Component Responsibilities
 
 - **UI Layer:** renders the newest-first list and completed indicator; wires up create/complete/reopen/delete interactions; manages focus per NFR-7; uses semantic, keyboard-accessible native elements (NFR-4–NFR-6); renders titles as text only (NFR-9); responsive layout (NFR-8); renders a single, non-blocking notice line reflecting the Task Store's current `persistenceStatus` (hidden when status is `ok`).
-- **Task Store:** owns the canonical task list; generates unique IDs (FR-3); validates titles before creating (FR-2); inserts newest-first (FR-4); performs complete/reopen/delete by ID (FR-7–FR-9); treats same-titled tasks as fully independent (FR-10); calls the Persistence Layer's `load()` once at startup and `save()` after every mutation; stores the single most recent status value returned by each call as `persistenceStatus`, for the UI to read.
+- **Task Store:** owns the canonical task list; generates unique IDs (FR-3); validates titles before creating (FR-2); inserts newest-first (FR-4); performs complete/reopen/delete by ID (FR-7–FR-9); removes all completed tasks in a single operation (FR-15); treats same-titled tasks as fully independent (FR-10); calls the Persistence Layer's `load()` once at startup and `save()` after every mutation; stores the single most recent status value returned by each call as `persistenceStatus`, for the UI to read.
 - **Persistence Layer:** exposes exactly two operations, `load()` and `save(tasks)`, each returning a small plain result object (no custom classes, no events) — see Section 10.
 
 ## 8. Data Flow
@@ -62,6 +62,7 @@ flowchart TD
 - **Load (startup):** Store calls `load()` → records the returned status and tasks → UI renders the resulting list (empty or loaded) and any notice implied by the status.
 - **Complete/Reopen:** UI triggers by task ID → Store toggles that task's state → Store calls `save(tasks)`, records status → UI updates that task's indicator and the notice.
 - **Delete:** UI triggers by task ID → Store removes it → Store calls `save(tasks)`, records status → UI removes it from the DOM, refocuses the input, updates the notice.
+- **Clear Completed:** UI triggers (control enabled only when ≥1 completed task exists) → Store filters out all completed tasks → Store calls `save(tasks)`, records status → UI removes the cleared items from the DOM, refocuses the input, updates the notice, and disables the control (no completed tasks remain).
 
 ## 9. Data Model / Key Data Structures
 
@@ -110,9 +111,9 @@ Stored form: one `localStorage` key holding a JSON-serialized array of `Task`, i
 
 ## 13. Accessibility/Responsiveness Considerations
 
-- NFR-4: native `<input>` for title entry, a native checkbox-type control for complete/reopen, a native `<button>` for delete.
-- NFR-5/NFR-6: natural DOM order (input, then list items top-to-bottom) gives a correct tab order without custom `tabindex` management.
-- NFR-7: after create, focus is programmatically returned to the title input; after delete, focus is programmatically moved to the title input (chosen as the single predictable target for both cases).
+- NFR-4: native `<input>` for title entry, a native checkbox-type control for complete/reopen, a native `<button>` for delete, a native `<button>` for clear-completed.
+- NFR-5/NFR-6: natural DOM order (input, then list items top-to-bottom, then clear-completed control) gives a correct tab order without custom `tabindex` management.
+- NFR-7: after create, focus is programmatically returned to the title input; after delete or clear-completed, focus is programmatically moved to the title input (chosen as the single predictable target in all three cases).
 - NFR-8: a simple, relative-unit, flex/stack layout adapts to mobile widths without a separate mobile-specific template.
 
 ## 14. Architecture Decisions and Rationale
@@ -123,6 +124,7 @@ Stored form: one `localStorage` key holding a JSON-serialized array of `Task`, i
 - **AD-4:** The application guarantees, at the application level, that it never issues a write intended to replace valid stored data with data it knows or suspects to be invalid (FR-13's "no automatic overwrite" is implemented by `load()` never writing, per Section 11). The application makes no claim about browser-internal behavior of a thrown `setItem` (FR-14); it only guarantees that a failed save does not alter the in-memory state the user sees (Section 11).
 - **AD-5:** Text-only rendering of titles — directly implements NFR-9.
 - **AD-6:** The Persistence Layer's `load()`/`save()` return plain `{status, ...}` objects with a fixed, small set of string values — no custom error classes, event system, or status-tracking component is introduced; the Task Store simply retains the latest value.
+- **AD-7:** Clear Completed reuses the existing Task Store/Persistence contract unchanged — implemented as an array filter followed by the same `save(tasks)` call already used by every other mutation; no new component, persistence shape, or status value is introduced.
 
 ## 15. Constraints
 
@@ -151,6 +153,7 @@ Stored form: one `localStorage` key holding a JSON-serialized array of `Task`, i
 | FR-5, FR-6 | UI Layer rendering, §7 |
 | FR-7, FR-8, FR-9 | Task Store operations by ID, §8 |
 | FR-10 | Task Store independence-by-ID, §7 |
+| FR-15, AC-19 | Task Store filter operation, §7, §8, AD-7 |
 | FR-11 | Persistence Layer `load()`/`save()`, §10 |
 | FR-12 | `load()` → `"unavailable"`, §10, §11 |
 | FR-13 | `load()` → `"malformed"`, §10, §11, AD-4 |
