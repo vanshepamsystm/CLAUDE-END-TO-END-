@@ -2,7 +2,7 @@
 
 ## 1. Overview
 
-The Implementation phase will build a static, client-only Todo application: one HTML page with semantic controls for creating and listing tasks, one stylesheet for a simple responsive layout, and one JavaScript file implementing the Task Store (in-memory state, validation, ID/ordering rules) and the Persistence Layer (`localStorage` load/save with the `ok`/`unavailable`/`malformed`/`failed` contract), wired to the UI per `architecture.md`.
+The Implementation phase will build a static, client-only Todo application: one HTML page with semantic controls for creating, listing, and bulk-clearing completed tasks, one stylesheet for a simple responsive layout, and one JavaScript file implementing the Task Store (in-memory state, validation, ID/ordering rules, clear-completed) and the Persistence Layer (`localStorage` load/save with the `ok`/`unavailable`/`malformed`/`failed` contract), wired to the UI per `architecture.md`.
 
 File organization (approved): `index.html`, `styles.css`, `app.js`.
 
@@ -117,24 +117,47 @@ File organization (approved): `index.html`, `styles.css`, `app.js`.
 
 ### IP-011 — Keyboard accessibility & tab order
 - **Priority:** Core
-- **Objective:** Ensure the full task lifecycle is keyboard-operable in a logical order.
-- **Requirements covered:** NFR-5, NFR-6
-- **Acceptance criteria covered:** AC-15
+- **Objective:** Ensure the full task lifecycle, including clear-completed, is keyboard-operable in a logical order.
+- **Description:** The clear-completed control takes its place in the natural DOM order (input, then list items, then clear-completed control), giving it a correct tab position without custom `tabindex` management.
+- **Requirements covered:** NFR-5, NFR-6, FR-15
+- **Acceptance criteria covered:** AC-15, AC-19
 - **Architecture components affected:** UI Layer (§13)
 - **Files expected to be created/modified:** `index.html`, `app.js` (verify no custom `tabindex` management)
-- **Dependencies:** IP-001, IP-010
-- **Verification expectations:** Create, complete, reopen, and delete are each achievable using the keyboard alone; focus order matches the visual layout.
+- **Dependencies:** IP-001, IP-010, IP-015
+- **Verification expectations:** Create, complete, reopen, delete, and clear-completed are each achievable using the keyboard alone; focus order matches the visual layout.
 
-### IP-012 — Focus management after create/delete
+### IP-012 — Focus management after create/delete/clear-completed
 - **Priority:** Core
 - **Objective:** Implement predictable focus behavior.
-- **Description:** After create, focus returns to the title input. After delete, focus moves to the title input; focus is never left on a removed element.
-- **Requirements covered:** NFR-7
-- **Acceptance criteria covered:** AC-16
+- **Description:** After create, focus returns to the title input. After delete or clear-completed, focus moves to the title input; focus is never left on a removed element.
+- **Requirements covered:** NFR-7, FR-15
+- **Acceptance criteria covered:** AC-16, AC-19
 - **Architecture components affected:** UI Layer (§13)
 - **Files expected to be created/modified:** `app.js` (modify)
-- **Dependencies:** IP-010
-- **Verification expectations:** After creating a task, the title input has focus. After deleting a task, the title input has focus.
+- **Dependencies:** IP-010, IP-015
+- **Verification expectations:** After creating a task, the title input has focus. After deleting a task or clearing completed tasks, the title input has focus.
+
+### IP-014 — Clear Completed operation (Task Store)
+- **Priority:** Core
+- **Objective:** Implement the bulk clear-completed operation.
+- **Description:** Filter the task array to remove every task with `completed === true` in a single operation; call the same `save(tasks)` already used by every other mutation (AD-7) — no new persistence shape introduced.
+- **Requirements covered:** FR-15
+- **Acceptance criteria covered:** AC-19
+- **Architecture components affected:** Task Store (§7, §8, AD-7)
+- **Files expected to be created/modified:** `app.js` (modify)
+- **Dependencies:** IP-003, IP-007
+- **Verification expectations:** Only completed tasks are removed; incomplete tasks and their relative order are unaffected; exactly one `save()` call occurs per activation.
+
+### IP-015 — Clear Completed UI control & wiring
+- **Priority:** Core
+- **Objective:** Add the Clear Completed control and its enable/disable + event wiring.
+- **Description:** Native `<button>`, placed after the task list in DOM order; disabled whenever zero tasks are completed, enabled whenever at least one task is completed, recomputed after every mutation that changes the completed count (create, complete, reopen, delete, clear) — not only recalculated at clear-time itself; wired to IP-014's operation; triggers re-render.
+- **Requirements covered:** FR-15, NFR-1, NFR-2, NFR-4, NFR-5, NFR-6
+- **Acceptance criteria covered:** AC-19, AC-14, AC-15
+- **Architecture components affected:** UI Layer (§7, §13)
+- **Files expected to be created/modified:** `index.html` (modify — add button), `app.js` (modify)
+- **Dependencies:** IP-001, IP-009, IP-014
+- **Verification expectations:** Control is disabled with zero completed tasks and enabled with at least one; activating it removes all completed items from the DOM in a single update; reachable and operable via keyboard alone.
 
 ### IP-013 — Persistence status notice UI
 - **Priority:** Supporting
@@ -151,18 +174,18 @@ File organization (approved): `index.html`, `styles.css`, `app.js`.
 Recommended implementation sequence:
 
 ```
-IP-001 → IP-002 → IP-003 → IP-007 → IP-004 → IP-005 → IP-006 → IP-008 → IP-009 → IP-010 → IP-011 → IP-012 → IP-013
+IP-001 → IP-002 → IP-003 → IP-007 → IP-004 → IP-005 → IP-006 → IP-008 → IP-009 → IP-010 → IP-014 → IP-015 → IP-011 → IP-012 → IP-013
 ```
 
-IP-001/IP-002 (markup/styles) and IP-003/IP-007 (Task Store/Persistence contract) are each internally independent but must precede any task that wires them together (IP-008 onward).
+IP-001/IP-002 (markup/styles) and IP-003/IP-007 (Task Store/Persistence contract) are each internally independent but must precede any task that wires them together (IP-008 onward). IP-014 (Clear Completed operation) depends on the same Task Store/Persistence foundation as the other mutations; IP-015 (its UI control) follows the same pattern as IP-009/IP-010.
 
 ## 4. File Impact
 
 | File | Created by | Modified by |
 |---|---|---|
-| `index.html` | IP-001 | IP-009 (if hooks needed), IP-011, IP-013 |
+| `index.html` | IP-001 | IP-009 (if hooks needed), IP-011, IP-013, IP-015 |
 | `styles.css` | IP-002 | IP-013 |
-| `app.js` | IP-003 | IP-004, IP-005, IP-006, IP-007, IP-008, IP-009, IP-010, IP-012, IP-013 |
+| `app.js` | IP-003 | IP-004, IP-005, IP-006, IP-007, IP-008, IP-009, IP-010, IP-012, IP-013, IP-014, IP-015 |
 
 No other files. No framework, package manager, backend service, database, or authentication is introduced anywhere in this plan, consistent with `architecture.md` §4/§15 and `CLAUDE.md`'s scope control.
 
@@ -184,12 +207,13 @@ No other files. No framework, package manager, backend service, database, or aut
 | FR-12 | IP-007, IP-008, IP-013 |
 | FR-13 | IP-007, IP-008, IP-013 |
 | FR-14 | IP-007, IP-008, IP-013 |
-| NFR-1 | IP-010, IP-013 |
-| NFR-2 | IP-009, IP-010 |
+| FR-15 | IP-014, IP-015, IP-011, IP-012 |
+| NFR-1 | IP-010, IP-013, IP-015 |
+| NFR-2 | IP-009, IP-010, IP-015 |
 | NFR-3 | Cross-cutting — no task introduces a framework/build step |
-| NFR-4 | IP-001 |
-| NFR-5 | IP-011 |
-| NFR-6 | IP-001, IP-011 |
+| NFR-4 | IP-001, IP-015 |
+| NFR-5 | IP-011, IP-015 |
+| NFR-6 | IP-001, IP-011, IP-015 |
 | NFR-7 | IP-012 |
 | NFR-8 | IP-002 |
 | NFR-9 | IP-009 |
@@ -207,6 +231,7 @@ Every functional and non-functional requirement has at least one covering task.
 - **Keyboard accessibility** (NFR-5/NFR-6): risk of introducing non-native custom controls that silently break default keyboard behavior.
 - **Focus loss on delete** (NFR-7): re-rendering the list after a deletion risks leaving focus on a removed/detached element if not explicitly redirected.
 - **Responsive layout overflow** (NFR-8): fixed-width elements could cause horizontal scrolling at mobile widths.
+- **Stale disabled-state on Clear Completed** (FR-15/§8/§13): the control's disabled condition must be recomputed after every mutation that changes the completed count (create, complete, reopen, delete), not only recalculated at clear-time itself — otherwise the control can show an incorrect enabled/disabled state.
 
 All risks above are grounded in `architecture.md` and `design-review.md`; none are invented beyond those artifacts.
 
