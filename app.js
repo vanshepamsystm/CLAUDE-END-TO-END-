@@ -130,12 +130,33 @@
     persistAfterMutation();
   }
 
+  function hasCompletedTasks() {
+    for (var i = 0; i < tasks.length; i++) {
+      if (tasks[i].completed) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function clearCompleted() {
+    var remaining = [];
+    for (var i = 0; i < tasks.length; i++) {
+      if (!tasks[i].completed) {
+        remaining.push(tasks[i]);
+      }
+    }
+    tasks = remaining;
+    persistAfterMutation();
+  }
+
   // --- UI Layer (architecture.md §7, §12, §13) ---
 
   var formEl;
   var titleInput;
   var taskListEl;
   var noticeEl;
+  var clearCompletedBtn;
 
   var NOTICE_MESSAGES = {
     unavailable: 'Storage is unavailable in this browser — your changes will not be saved.',
@@ -197,9 +218,14 @@
     }
   }
 
+  function renderClearCompletedButton() {
+    clearCompletedBtn.disabled = !hasCompletedTasks();
+  }
+
   function renderAll() {
     renderTasks();
     renderNotice();
+    renderClearCompletedButton();
   }
 
   function handleCreateSubmit(event) {
@@ -217,8 +243,14 @@
     titleInput = document.getElementById('title-input');
     taskListEl = document.getElementById('task-list');
     noticeEl = document.getElementById('notice');
+    clearCompletedBtn = document.getElementById('clear-completed-btn');
 
     formEl.addEventListener('submit', handleCreateSubmit);
+    clearCompletedBtn.addEventListener('click', function () {
+      clearCompleted();
+      renderAll();
+      titleInput.focus();
+    });
 
     renderAll();
   }
@@ -230,3 +262,4 @@
 
   document.addEventListener('DOMContentLoaded', init);
 })();
+// Harmless comment added to demonstrate the post-change-validation hook.
