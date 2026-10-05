@@ -6,16 +6,18 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PROJECT_DIR}/Hooks/git-push-guard.js\""
+            "command": "node \"${CLAUDE_PROJECT_DIR}/Hooks/dangerous-command-guard.js\""
           }
         ]
-      },
+      }
+    ],
+    "PostToolUse": [
       {
         "matcher": "Edit|Write",
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PROJECT_DIR}/Hooks/artifact-guard.js\""
+            "command": "node \"${CLAUDE_PROJECT_DIR}/Hooks/post-change-validation.js\""
           }
         ]
       }

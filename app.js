@@ -2,6 +2,7 @@
   'use strict';
 
   var STORAGE_KEY = 'todo.tasks.v1';
+  // hook demo: temporary harmless line
 
   // --- Persistence Layer (architecture.md §10) ---
 
@@ -262,4 +263,3 @@
 
   document.addEventListener('DOMContentLoaded', init);
 })();
-// Harmless comment added to demonstrate the post-change-validation hook.
